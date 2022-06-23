@@ -26,11 +26,12 @@
 
 import os
 import sys
+from queue import Queue
 
 import numpy as np
 from tensorflow import keras
 from tensorflow.keras.utils import get_file
-from .thread_returning import ThreadReturning
+from thread_returning import ThreadReturning
 
 import shutil
 import time
@@ -40,10 +41,10 @@ from skimage.util import view_as_windows as vaw
 
 
 from pyannote.algorithms.utils.viterbi import viterbi_decoding
-from .viterbi_utils import pred2logemission, diag_trans_exp, log_trans_exp
+from viterbi_utils import pred2logemission, diag_trans_exp, log_trans_exp
 
-from .features import media2feats
-from .export_funcs import seg2csv, seg2textgrid
+from features import media2feats
+from export_funcs import seg2csv, seg2textgrid
 
 
 
@@ -127,9 +128,10 @@ class DnnSegmenter:
         if difflen > 0:
             patches = patches[:-int(difflen / 2), :, :]
             finite = finite[:-int(difflen / 2)]
-            
-        assert len(finite) == len(patches), (len(patches), len(finite))
-            
+        
+        print(len(finite) == len(patches), (len(patches), len(finite)))
+        assert len(finite) == len(patches), (len(patches), len(finite))           
+
         batch = []
         for lab, start, stop in lseg:
             if lab == self.inlabel:
@@ -211,14 +213,14 @@ class Segmenter:
         self.energy_ratio = energy_ratio
 
         # select speech/music or speech/music/noise voice activity detection engine
-        assert vad_engine in ['sm', 'smn']
+        assert vad_engine in ['sm', 'smn'], "Invlaid vad engine"
         if vad_engine == 'sm':
             self.vad = SpeechMusic(batch_size)
         elif vad_engine == 'smn':
             self.vad = SpeechMusicNoise(batch_size)
 
         # load gender detection NN if required
-        assert detect_gender in [True, False]
+        assert detect_gender in [True, False], "Invalid detect gender"
         self.detect_gender = detect_gender
         if detect_gender:
             self.gender = Gender(batch_size)
@@ -289,12 +291,14 @@ class Segmenter:
         
         lmsg = []
         fg = featGenerator(linput.copy(), loutput.copy(), tmpdir, self.ffmpeg, skipifexist, nbtry, trydelay)
+        print("output of featGen:",fg)
         i = 0
         for feats, msg in fg:
             lmsg += msg
             i += len(msg)
             if verbose:
                 print('%d/%d' % (i, len(linput)), msg)
+                print('I can make changes')
             if feats is None:
                 break
             mspec, loge, difflen = feats
@@ -314,59 +318,102 @@ class Segmenter:
         return t_batch_dur, nb_processed, avg, lmsg
 
 
-def medialist2feats(lin, lout, tmpdir, ffmpeg, skipifexist, nbtry, trydelay):
+def medialist2feats(src, dst, tmpdir, ffmpeg, skipifexist, nbtry, trydelay):
     """
     To be used when processing batches
     if resulting file exists, it is skipped
     in case of remote files, access is tried nbtry times
     """
+
     ret = None
     msg = []
-    while ret is None and len(lin) > 0:
-        src = lin.pop(0)
-        dst = lout.pop(0)
-#        print('popping', src)
-        
-        # if file exists: skipp
-        if skipifexist and os.path.exists(dst):
-            msg.append((dst, 1, 'already exists'))
-            continue
 
-        # create storing directory if required
-        dname = os.path.dirname(dst)
-        if not os.path.isdir(dname):
-            os.makedirs(dname)
+    # if file exists: skipp
+    if skipifexist and os.path.exists(dst):
+        msg.append((dst, 1, 'already exists'))
+        return
+
+    # create storing directory if required
+    dname = os.path.dirname(dst)
+    if not os.path.isdir(dname):
+        os.makedirs(dname)
+    
+    itry = 0
+    while ret is None and itry < nbtry:
+        try:
+            ret = media2feats(src, tmpdir, None, None, ffmpeg)
+        except:
+            itry += 1
+            errmsg = sys.exc_info()[0]
+            if itry != nbtry:
+                time.sleep(random.random() * trydelay)
+    if ret is None:
+        msg.append((dst, 2, 'error: ' + str(errmsg)))
+    else:
+        msg.append((dst, 0, 'ok'))
+
+##### OLD CODE: ######
+#     while ret is None and len(lin) > 0:
+#         src = lin.pop(0)
+#         dst = lout.pop(0)
+# #        print('popping', src)
         
-        itry = 0
-        while ret is None and itry < nbtry:
-            try:
-                ret = media2feats(src, tmpdir, None, None, ffmpeg)
-            except:
-                itry += 1
-                errmsg = sys.exc_info()[0]
-                if itry != nbtry:
-                    time.sleep(random.random() * trydelay)
-        if ret is None:
-            msg.append((dst, 2, 'error: ' + str(errmsg)))
-        else:
-            msg.append((dst, 0, 'ok'))
+#         # if file exists: skipp
+#         if skipifexist and os.path.exists(dst):
+#             msg.append((dst, 1, 'already exists'))
+#             continue
+
+#         # create storing directory if required
+#         dname = os.path.dirname(dst)
+#         if not os.path.isdir(dname):
+#             os.makedirs(dname)
+        
+#         itry = 0
+#         while ret is None and itry < nbtry:
+#             try:
+#                 ret = media2feats(src, tmpdir, None, None, ffmpeg)
+#             except:
+#                 itry += 1
+#                 errmsg = sys.exc_info()[0]
+#                 if itry != nbtry:
+#                     time.sleep(random.random() * trydelay)
+#         if ret is None:
+#             msg.append((dst, 2, 'error: ' + str(errmsg)))
+#         else:
+#             msg.append((dst, 0, 'ok'))
             
     return ret, msg
 
     
 def featGenerator(ilist, olist, tmpdir=None, ffmpeg='ffmpeg', skipifexist=False, nbtry=1, trydelay=2.):
-#    print('init feat gen', len(ilist))
-    thread = ThreadReturning(target = medialist2feats, args=[ilist, olist, tmpdir, ffmpeg, skipifexist, nbtry, trydelay])
-    thread.start()
-    while True:
-        ret, msg = thread.join()
-#        print('join done', len(ilist))
-#        print('new list', ilist)
-        #ilist = ilist[len(msg):]
-        #olist = olist[len(msg):]
-        if len(ilist) == 0:
-            break
-        thread = ThreadReturning(target = medialist2feats, args=[ilist, olist, tmpdir, ffmpeg, skipifexist, nbtry, trydelay])
-        thread.start()
-        yield ret, msg
-    yield ret, msg
+    
+    # Create a queue for all threads
+    q = Queue(maxsize=100)
+    # Loop through all input files and create thread
+    for i in range(len(ilist)):
+        t = ThreadReturning(target = medialist2feats, args=[ilist[i], olist[i], tmpdir, ffmpeg, skipifexist, nbtry, trydelay])
+        t.start()
+        q.put(t)
+
+    while(not q.empty()): 
+        print("Thread being joined:",q.get())
+        t = q.get()
+        ret, msg = t.join()
+        print("Thread has joined!")
+        yield ret,msg
+
+####### OLD CODE: ########
+#     thread = ThreadReturning(target = medialist2feats, args=[ilist, olist, tmpdir, ffmpeg, skipifexist, nbtry, trydelay])
+#     thread.start()
+#     while True:
+#         ret, msg = thread.join()
+# #        print('join done', len(ilist))
+# #        print('new list', ilist)
+#         #ilist = ilist[len(msg):]
+#         #olist = olist[len(msg):]
+#         if len(ilist) == 0:
+#             break
+#         thread = ThreadReturning(target = medialist2feats, args=[ilist, olist, tmpdir, ffmpeg, skipifexist, nbtry, trydelay])
+#         thread.start()
+#         yield ret, msg
+#     yield ret, msg
