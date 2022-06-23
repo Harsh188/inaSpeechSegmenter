@@ -293,6 +293,7 @@ class Segmenter:
         fg = featGenerator(linput.copy(), loutput.copy(), tmpdir, self.ffmpeg, skipifexist, nbtry, trydelay)
         print("output of featGen:",fg)
         i = 0
+        print(fg)
         for feats, msg in fg:
             lmsg += msg
             i += len(msg)
@@ -301,13 +302,14 @@ class Segmenter:
                 print('I can make changes')
             if feats is None:
                 break
-            mspec, loge, difflen = feats
-            #if verbose == True:
-            #    print(i, linput[i], loutput[i])
-            b = time.time()
-            lseg = self.segment_feats(mspec, loge, difflen, 0)
-            fexport(lseg, loutput[len(lmsg) -1])
-            lmsg[-1] = (lmsg[-1][0], lmsg[-1][1], 'ok ' + str(time.time() -b))
+            for f in feats:
+                mspec, loge, difflen = f
+                #if verbose == True:
+                #    print(i, linput[i], loutput[i])
+                b = time.time()
+                lseg = self.segment_feats(mspec, loge, difflen, 0)
+                fexport(lseg, loutput[len(lmsg) -1])
+                lmsg[-1] = (lmsg[-1][0], lmsg[-1][1], 'ok ' + str(time.time() -b))
 
         t_batch_dur = time.time() - t_batch_start
         nb_processed = len([e for e in lmsg if e[1] == 0])

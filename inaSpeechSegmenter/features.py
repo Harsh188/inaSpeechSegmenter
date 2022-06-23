@@ -27,8 +27,10 @@ import os
 import tempfile
 import warnings
 from subprocess import Popen, PIPE
-import numpy as np
 import math
+
+import numpy as np
+
 
 #os.environ['SIDEKIT'] = 'theano=false,libsvm=false,cuda=false'
 #from sidekit.frontend.io import read_wav
@@ -42,6 +44,7 @@ def _wav2feats(wavname):
     """
     print("Starting _wav2feats")
     ext = os.path.splitext(wavname)[-1]
+    print(ext)
     assert ext.lower() == '.wav' or ext.lower() == '.wave'
     sig, read_framerate, sampwidth = read_wav(wavname)
     shp = sig.shape
@@ -67,6 +70,7 @@ def _wav2feats(wavname):
         mspec = np.concatenate((mspec, np.ones((difflen, 24)) * np.min(mspec)))
         #loge = np.concatenate((loge, np.ones(difflen) * np.min(mspec)))
 
+    print("wav2feats done")
     return mspec, loge, difflen
 
 
@@ -74,7 +78,8 @@ def media2feats(medianame, tmpdir, start_sec, stop_sec, ffmpeg):
     """
     Convert media to temp wav 16k file and return features
     """
-    
+    print("Starting media 2 feats")
+
     base, _ = os.path.splitext(os.path.basename(medianame))
 
     with tempfile.TemporaryDirectory(dir=tmpdir) as tmpdirname:
@@ -88,25 +93,28 @@ def media2feats(medianame, tmpdir, start_sec, stop_sec, ffmpeg):
         assert p.returncode == 0, error
 
         # Convert output (bytes) ==> (int)
-        output = int(float(output.decode("utf-8").strip()))
-        print('Duration',output)
+        i_output = int(float(output.decode("utf-8").strip()))
+        print('Duration',i_output)
 
         mel_output=[]
-        for i in range(math.floor(output)%2700):
+        
+        for i in range(math.ceil(i_output/2700)):
             # build ffmpeg command line
-            
             args = [ffmpeg, '-y', '-i', medianame, '-ar', '16000', '-ac', '1']
             
-            start_sec = i*2700
-            args += ['-ss', '%f' % start_sec]
+            if(math.ceil(i_output/2700)-1 == i):
+                start_sec = i*2700
+                args += ['-ss', '%f' % start_sec]
+                tmpwav = tmpdirname + '/' + base + '_'+str(start_sec)+'.wav'
+            else:
+                start_sec = i*2700
+                args += ['-ss', '%f' % start_sec]
 
-            stop_sec = start_sec+2700
-            args += ['-to', '%f' % stop_sec]
+                stop_sec = start_sec+2700
+                args += ['-to', '%f' % stop_sec]
 
-            print('start',start_sec)
-            print('stop_sec',stop_sec)
-            print('tmpdirname',tmpdirname)
-            tmpwav = tmpdirname + '/' + base + '_'+str(start_sec)+'_'+str(stop_sec)+'.wav'
+                tmpwav = tmpdirname + '/' + base + '_'+str(start_sec)+'_'+str(stop_sec)+'.wav'
+            
             print('tmpwav',tmpwav)
             args += [tmpwav]
 
@@ -116,11 +124,14 @@ def media2feats(medianame, tmpdir, start_sec, stop_sec, ffmpeg):
             assert p.returncode == 0, error
 
             # Get Mel Power Spectrogram and Energy
-            mel_output.append(_wav2feats(tmpwav))
-
+            try:
+                mel_output.append([_wav2feats(tmpwav)])
+                print(mel_output)
+            except:
+                print(_wav2feats(tmpwav))
+                print(mel_output)
+    return mel_output
         ########################
-
-        print("Starting media 2 feats")
 
         # build ffmpeg command line
         # tmpwav = tmpdirname + '/' + base + '.wav'
