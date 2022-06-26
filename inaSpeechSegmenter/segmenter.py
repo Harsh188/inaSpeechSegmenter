@@ -320,7 +320,7 @@ class Segmenter:
         return t_batch_dur, nb_processed, avg, lmsg
 
 
-def medialist2feats(src, dst, tmpdir, ffmpeg, skipifexist, nbtry, trydelay):
+def medialist2feats(src, dst, tmpdir, ffmpeg, skipifexist, nbtry, trydelay, q):
     """
     To be used when processing batches
     if resulting file exists, it is skipped
@@ -393,16 +393,19 @@ def featGenerator(ilist, olist, tmpdir=None, ffmpeg='ffmpeg', skipifexist=False,
     q = Queue(maxsize=100)
     # Loop through all input files and create thread
     for i in range(len(ilist)):
-        t = ThreadReturning(target = medialist2feats, args=[ilist[i], olist[i], tmpdir, ffmpeg, skipifexist, nbtry, trydelay])
+        t = ThreadReturning(target = medialist2feats, args=[ilist[i], olist[i], tmpdir, 
+                                ffmpeg, skipifexist, nbtry, trydelay, q])
         t.start()
         q.put(t)
 
-    while(not q.empty()): 
-        print("Thread being joined:",q.get())
-        t = q.get()
-        ret, msg = t.join()
-        print("Thread has joined!")
-        yield ret,msg
+    while(True):
+        if(not q.empty()):
+            ret = q.get()
+            if(ret==None):
+                ret, msg = t.join()
+                return
+            else:
+                yield ret
 
 ####### OLD CODE: ########
 #     thread = ThreadReturning(target = medialist2feats, args=[ilist, olist, tmpdir, ffmpeg, skipifexist, nbtry, trydelay])

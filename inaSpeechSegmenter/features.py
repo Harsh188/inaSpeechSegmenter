@@ -74,7 +74,7 @@ def _wav2feats(wavname):
     return mspec, loge, difflen
 
 
-def media2feats(medianame, tmpdir, start_sec, stop_sec, ffmpeg):
+def media2feats(medianame, tmpdir, start_sec, stop_sec, ffmpeg,q):
     """
     Convert media to temp wav 16k file and return features
     """
@@ -127,6 +127,7 @@ def media2feats(medianame, tmpdir, start_sec, stop_sec, ffmpeg):
             try:
                 mel_output.append([_wav2feats(tmpwav)])
                 print(mel_output)
+                q.put(mel_output[-1])
             except:
                 print(_wav2feats(tmpwav))
                 print(mel_output)
