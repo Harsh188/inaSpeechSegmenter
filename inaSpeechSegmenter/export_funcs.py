@@ -26,9 +26,33 @@
 import pandas as pd
 from pytextgrid.PraatTextGrid import PraatTextGrid, Interval, Tier
 
-def seg2csv(lseg, fout=None):
-    df = pd.DataFrame.from_records(lseg, columns=['labels', 'start', 'stop'])
-    df.to_csv(fout, sep='\t', index=False)
+def seg2csv(data,columns,fout=None):
+    '''This method will take in the features, label segments, and store it
+    within the specified output csv file. 
+        
+        Args:
+            data (Dict): Dictionary holding data to put into csv
+            columns (List): List of strings holding DataFrame column names
+            fout (str): Output csv path.
+    '''
+    # Create new DF using data
+    df = pd.DataFrame(data=data,columns=columns)
+
+    # Check if CSV exists:
+    if(os.path.exists(fout)):
+        print("CSV exists -- Appending")
+        # Append to CSV
+        # Load data from csv to DataFrame
+        df2 = pd.read_csv(fout)
+
+        # Append data to existing DataFrame
+        df = df2.append(df)
+
+    # Save to CSV
+    print("Saving DF to CSV\n")
+    print('DF',df.head())
+    print('File',fout)
+    df.to_csv(fout,sep=',',index=False)
 
 def seg2textgrid(lseg, fout=None):
     tier = Tier(name='inaSpeechSegmenter')
