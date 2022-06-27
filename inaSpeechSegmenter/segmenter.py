@@ -308,7 +308,13 @@ class Segmenter:
             b = time.time()
             lseg = self.segment_feats(mspec, loge, difflen, 0)
             print('Output from segement feats:',lseg)
-            fexport(lseg, loutput[len(lmsg) -1])
+
+            data = {'index':msg[-1][0],'start_second':msg[-1][1],'stop_second':msg[-1][2],
+                        'mfcc':mspec,'loge':loge,'difflen':difflen,'audio_classification_labels':lseg}
+            columns=['index','start_second','stop_second','mfcc',
+                       'loge','difflen','audio_classification_labels']
+
+            fexport(data,columns,loutput[msg[2][0]])
             print('\nFinished fexport')
             lmsg[-1] = (lmsg[-1][0], lmsg[-1][1], 'ok ' + str(time.time() -b))
 
@@ -344,7 +350,7 @@ def medialist2feats(src, dst, tmpdir, ffmpeg, skipifexist, nbtry, trydelay, q, t
     itry = 0
     while ret is None and itry < nbtry:
         try:
-            ret = media2feats(src, tmpdir, None, None, ffmpeg, q)
+            ret = media2feats(src, tmpdir, None, None, ffmpeg, q, tid)
         except:
             itry += 1
             errmsg = sys.exc_info()[0]
@@ -416,12 +422,12 @@ def featGenerator(ilist, olist, tmpdir=None, ffmpeg='ffmpeg', skipifexist=False,
                     print('\nThread',thread_index,'is finished. Now joining.')
                     t = thread_list[thread_index]
                     t.join()
-                # If tuple has three elements then it is a chunk
+                # If tuple has 4 elements then it is a chunk
                 else:
                     print('\nYielding chunk')
                     # Yield the 45 min chunk
-                    msg = (0, 'ok',ret[-1])
-                    yield ret[0], msg
+                    msg = (0, 'ok',ret[:-1])
+                    yield ret[-1], msg
 
 ####### OLD CODE: ########
 #     thread = ThreadReturning(target = medialist2feats, args=[ilist, olist, tmpdir, ffmpeg, skipifexist, nbtry, trydelay])

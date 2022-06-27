@@ -74,7 +74,7 @@ def _wav2feats(wavname):
     return mspec, loge, difflen
 
 
-def media2feats(medianame, tmpdir, start_sec, stop_sec, ffmpeg, q):
+def media2feats(medianame, tmpdir, start_sec, stop_sec, ffmpeg, q, tid):
     """
     Convert media to temp wav 16k file and return features
     """
@@ -125,7 +125,7 @@ def media2feats(medianame, tmpdir, start_sec, stop_sec, ffmpeg, q):
 
             # Get Mel Power Spectrogram and Energy
             try:
-                q.put((_wav2feats(tmpwav),base + '_'+str(start_sec)+'_'+str(stop_sec),1))
+                q.put((tid,start_sec,stop_sec,_wav2feats(tmpwav)))
             except:
                 print('Error in puting to queue')
     return mel_output
