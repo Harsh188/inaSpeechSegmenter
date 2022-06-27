@@ -44,7 +44,7 @@ def _wav2feats(wavname):
     """
     print("Starting _wav2feats")
     ext = os.path.splitext(wavname)[-1]
-    print(ext)
+    
     assert ext.lower() == '.wav' or ext.lower() == '.wave'
     sig, read_framerate, sampwidth = read_wav(wavname)
     shp = sig.shape
@@ -74,7 +74,7 @@ def _wav2feats(wavname):
     return mspec, loge, difflen
 
 
-def media2feats(medianame, tmpdir, start_sec, stop_sec, ffmpeg,q):
+def media2feats(medianame, tmpdir, start_sec, stop_sec, ffmpeg, q):
     """
     Convert media to temp wav 16k file and return features
     """
@@ -125,12 +125,9 @@ def media2feats(medianame, tmpdir, start_sec, stop_sec, ffmpeg,q):
 
             # Get Mel Power Spectrogram and Energy
             try:
-                mel_output.append([_wav2feats(tmpwav)])
-                print(mel_output)
-                q.put(mel_output[-1])
+                q.put((_wav2feats(tmpwav),base + '_'+str(start_sec)+'_'+str(stop_sec),1))
             except:
-                print(_wav2feats(tmpwav))
-                print(mel_output)
+                print('Error in puting to queue')
     return mel_output
         ########################
 

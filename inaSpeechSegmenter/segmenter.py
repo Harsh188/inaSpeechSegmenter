@@ -302,14 +302,15 @@ class Segmenter:
                 print('I can make changes')
             if feats is None:
                 break
-            for f in feats:
-                mspec, loge, difflen = f
-                #if verbose == True:
-                #    print(i, linput[i], loutput[i])
-                b = time.time()
-                lseg = self.segment_feats(mspec, loge, difflen, 0)
-                fexport(lseg, loutput[len(lmsg) -1])
-                lmsg[-1] = (lmsg[-1][0], lmsg[-1][1], 'ok ' + str(time.time() -b))
+            mspec, loge, difflen = feats
+            #if verbose == True:
+            #    print(i, linput[i], loutput[i])
+            b = time.time()
+            lseg = self.segment_feats(mspec, loge, difflen, 0)
+            print('Output from segement feats:',lseg)
+            fexport(lseg, loutput[len(lmsg) -1])
+            print('\nFinished fexport')
+            lmsg[-1] = (lmsg[-1][0], lmsg[-1][1], 'ok ' + str(time.time() -b))
 
         t_batch_dur = time.time() - t_batch_start
         nb_processed = len([e for e in lmsg if e[1] == 0])
@@ -320,7 +321,7 @@ class Segmenter:
         return t_batch_dur, nb_processed, avg, lmsg
 
 
-def medialist2feats(src, dst, tmpdir, ffmpeg, skipifexist, nbtry, trydelay, q):
+def medialist2feats(src, dst, tmpdir, ffmpeg, skipifexist, nbtry, trydelay, q, tid):
     """
     To be used when processing batches
     if resulting file exists, it is skipped
@@ -332,7 +333,7 @@ def medialist2feats(src, dst, tmpdir, ffmpeg, skipifexist, nbtry, trydelay, q):
 
     # if file exists: skipp
     if skipifexist and os.path.exists(dst):
-        msg.append((dst, 1, 'already exists'))
+        msg.append((dst, 1, 'already exists',tid))
         return
 
     # create storing directory if required
@@ -343,16 +344,16 @@ def medialist2feats(src, dst, tmpdir, ffmpeg, skipifexist, nbtry, trydelay, q):
     itry = 0
     while ret is None and itry < nbtry:
         try:
-            ret = media2feats(src, tmpdir, None, None, ffmpeg)
+            ret = media2feats(src, tmpdir, None, None, ffmpeg, q)
         except:
             itry += 1
             errmsg = sys.exc_info()[0]
             if itry != nbtry:
                 time.sleep(random.random() * trydelay)
     if ret is None:
-        msg.append((dst, 2, 'error: ' + str(errmsg)))
+        msg.append((dst, 2, 'error: ' + str(errmsg),tid))
     else:
-        msg.append((dst, 0, 'ok'))
+        msg.append((dst, 0, 'ok', tid))
 
 ##### OLD CODE: ######
 #     while ret is None and len(lin) > 0:
@@ -389,23 +390,38 @@ def medialist2feats(src, dst, tmpdir, ffmpeg, skipifexist, nbtry, trydelay, q):
     
 def featGenerator(ilist, olist, tmpdir=None, ffmpeg='ffmpeg', skipifexist=False, nbtry=1, trydelay=2.):
     
-    # Create a queue for all threads
+    # Create a queue to hold 45min chunks
     q = Queue(maxsize=100)
+
+    # Create list to hold all threads
+    thread_list=[]
+
     # Loop through all input files and create thread
     for i in range(len(ilist)):
         t = ThreadReturning(target = medialist2feats, args=[ilist[i], olist[i], tmpdir, 
-                                ffmpeg, skipifexist, nbtry, trydelay, q])
+                                ffmpeg, skipifexist, nbtry, trydelay, q, i])
         t.start()
-        q.put(t)
+        thread_list.append(t)
 
     while(True):
         if(not q.empty()):
+            # If q not empty parse the element
             ret = q.get()
-            if(ret==None):
-                ret, msg = t.join()
-                return
-            else:
-                yield ret
+            # Check what the element is:
+            if(type(ret) is tuple):
+                # If tuple has two elements then thread is done
+                if(len(ret)==2):
+                    # Retrieve the thread which has finished and call join
+                    thread_index = ret[1][0][-1]
+                    print('\nThread',thread_index,'is finished. Now joining.')
+                    t = thread_list[thread_index]
+                    t.join()
+                # If tuple has three elements then it is a chunk
+                else:
+                    print('\nYielding chunk')
+                    # Yield the 45 min chunk
+                    msg = (0, 'ok',ret[-1])
+                    yield ret[0], msg
 
 ####### OLD CODE: ########
 #     thread = ThreadReturning(target = medialist2feats, args=[ilist, olist, tmpdir, ffmpeg, skipifexist, nbtry, trydelay])
