@@ -24,6 +24,7 @@
 # THE SOFTWARE.
 
 import pandas as pd
+import os
 from pytextgrid.PraatTextGrid import PraatTextGrid, Interval, Tier
 
 def seg2csv(data,columns,fout=None):
@@ -36,7 +37,9 @@ def seg2csv(data,columns,fout=None):
             fout (str): Output csv path.
     '''
     # Create new DF using data
-    df = pd.DataFrame(data=data,columns=columns)
+    df = pd.DataFrame.from_dict(data=data)
+    df = df.T
+    df.columns=columns
 
     # Check if CSV exists:
     if(os.path.exists(fout)):

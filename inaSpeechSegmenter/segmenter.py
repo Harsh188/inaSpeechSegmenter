@@ -306,11 +306,11 @@ class Segmenter:
             #if verbose == True:
             #    print(i, linput[i], loutput[i])
             b = time.time()
-            lseg = self.segment_feats(mspec, loge, difflen, 0)
+            lseg = self.segment_feats(mspec, loge, difflen, msg[-1][1])
             print('Output from segement feats:',lseg)
 
-            data = {'index':msg[-1][0],'start_second':msg[-1][1],'stop_second':msg[-1][2],
-                        'mfcc':mspec,'loge':loge,'difflen':difflen,'audio_classification_labels':lseg}
+            data = [msg[-1][0],msg[-1][1],msg[-1][2],
+                        mspec.tolist(),loge.tolist(),difflen,lseg]
             columns=['index','start_second','stop_second','mfcc',
                        'loge','difflen','audio_classification_labels']
 
