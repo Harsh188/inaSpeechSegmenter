@@ -24,8 +24,40 @@
 # THE SOFTWARE.
 
 import pandas as pd
+import numpy as np
 import os
 from pytextgrid.PraatTextGrid import PraatTextGrid, Interval, Tier
+
+def feat2npy(mfcc,loge,difflen,start,stop,fout=None):
+    '''
+
+        Args:
+            mfcc (np.array - float32) 
+            loge (np.array - float32)
+            difflen (int)
+            start (int)
+            stop (int)
+            fout (str)
+    '''
+    # Create file names using start-stop
+    mfcc_out = fout+str(start)+'_'+str(stop)+'_mfcc.npy'
+    loge_out = fout+str(start)+'_'+str(stop)+'_loge.npy'
+    print("Output:")
+    print(mfcc_out)
+    print(loge_out)
+
+    # Save mfcc as npy
+    np.save(mfcc_out,mfcc)
+
+    # Save loge as npy
+    np.save(loge_out,loge)
+
+    # Save Paths to DF
+    csv_out = fout+'_feats.csv'
+
+    data = [start,stop,difflen,mfcc_out,loge_out]
+    columns = ['start_second','stop_second','difflen','mfcc_path','loge_path']
+    seg2csv(data,columns,csv_out)
 
 def seg2csv(data,columns,fout=None):
     '''This method will take in the features, label segments, and store it
@@ -37,7 +69,7 @@ def seg2csv(data,columns,fout=None):
             fout (str): Output csv path.
     '''
     # Create new DF using data
-    df = pd.DataFrame.from_dict(data=data)
+    df = pd.DataFrame(data=data)
     df = df.T
     df.columns=columns
 

@@ -44,7 +44,7 @@ from pyannote.algorithms.utils.viterbi import viterbi_decoding
 from viterbi_utils import pred2logemission, diag_trans_exp, log_trans_exp
 
 from features import media2feats
-from export_funcs import seg2csv, seg2textgrid
+from export_funcs import seg2csv, seg2textgrid, feat2npy
 
 
 
@@ -233,9 +233,6 @@ class Segmenter:
         with a single channel
         """
 
-
-
-
         # perform energy-based activity detection
         lseg = []
         for lab, start, stop in _binidx2seglist(_energy_activity(loge, self.energy_ratio)[::2]):
@@ -309,10 +306,11 @@ class Segmenter:
             lseg = self.segment_feats(mspec, loge, difflen, msg[-1][1])
             print('Output from segement feats:',lseg)
 
-            data = [msg[-1][0],msg[-1][1],msg[-1][2],
-                        mspec.tolist(),loge.tolist(),difflen,lseg]
-            columns=['index','start_second','stop_second','mfcc',
-                       'loge','difflen','audio_classification_labels']
+            feat2npy(mspec,loge,difflen,msg[-1][1],msg[-1][2],
+                        loutput[msg[2][0]][:-4])
+            
+            data = [lseg]
+            columns = ['audio_classification_labels']
 
             fexport(data,columns,loutput[msg[2][0]])
             print('\nFinished fexport')
