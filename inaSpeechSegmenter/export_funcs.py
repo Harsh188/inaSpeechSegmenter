@@ -40,8 +40,8 @@ def feat2npy(mfcc,loge,difflen,start,stop,fout=None):
             fout (str)
     '''
     # Create file names using start-stop
-    mfcc_out = fout+str(start)+'_'+str(stop)+'_mfcc.npy'
-    loge_out = fout+str(start)+'_'+str(stop)+'_loge.npy'
+    mfcc_out = fout+'_'+str(start)+'_'+str(stop)+'_mfcc.npy'
+    loge_out = fout+'_'+str(start)+'_'+str(stop)+'_loge.npy'
     print("Output:")
     print(mfcc_out)
     print(loge_out)
@@ -59,7 +59,7 @@ def feat2npy(mfcc,loge,difflen,start,stop,fout=None):
     columns = ['start_second','stop_second','difflen','mfcc_path','loge_path']
     seg2csv(data,columns,csv_out)
 
-def seg2csv(data,columns,fout=None):
+def seg2csv(data,columns,fout=None,from_recs=False):
     '''This method will take in the features, label segments, and store it
     within the specified output csv file. 
         
@@ -69,9 +69,12 @@ def seg2csv(data,columns,fout=None):
             fout (str): Output csv path.
     '''
     # Create new DF using data
-    df = pd.DataFrame(data=data)
-    df = df.T
-    df.columns=columns
+    if(from_recs):
+        df = pd.DataFrame.from_records(data,columns=columns)
+    else:
+        df = pd.DataFrame(data=data)
+        df = df.T
+        df.columns=columns
 
     # Check if CSV exists:
     if(os.path.exists(fout)):

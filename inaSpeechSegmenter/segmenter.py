@@ -310,19 +310,21 @@ class Segmenter:
                         loutput[msg[2][0]][:-4])
             
             data = [lseg]
-            columns = ['audio_classification_labels']
+            columns = ['labels','start','stop']
 
-            fexport(data,columns,loutput[msg[2][0]])
+            fexport(data,columns,loutput[msg[2][0]],from_recs=True)
             print('\nFinished fexport')
-            lmsg[-1] = (lmsg[-1][0], lmsg[-1][1], 'ok ' + str(time.time() -b))
+            # lmsg[-1] = (lmsg[-1][0], lmsg[-1][1], 'ok ' + str(time.time() -b))
 
-        t_batch_dur = time.time() - t_batch_start
-        nb_processed = len([e for e in lmsg if e[1] == 0])
-        if nb_processed > 0:
-            avg = t_batch_dur / nb_processed
-        else:
-            avg = -1
-        return t_batch_dur, nb_processed, avg, lmsg
+        # t_batch_dur = time.time() - t_batch_start
+        # nb_processed = len([e for e in lmsg if e[1] == 0])
+        # if nb_processed > 0:
+        #     avg = t_batch_dur / nb_processed
+        # else:
+        #     avg = -1
+        # return t_batch_dur, nb_processed, avg, lmsg
+
+        return 1
 
 
 def medialist2feats(src, dst, tmpdir, ffmpeg, skipifexist, nbtry, trydelay, q, tid):
