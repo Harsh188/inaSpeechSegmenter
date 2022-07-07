@@ -249,7 +249,12 @@ class Segmenter:
         if self.detect_gender:
             lseg = self.gender(mspec, lseg, difflen)
 
-        return [(lab, start_sec + start * .02, start_sec + stop * .02) for lab, start, stop in lseg]
+        lseg_return=[]
+        for lab,start,stop in lseg:
+            if(lab=='music'):
+                if(stop_sec-start_sec > 10):
+                    lseg_return.append((lab, start_sec + start * .02, start_sec + stop * .02))
+        return lseg_return
 
 
     def __call__(self, medianame, tmpdir=None, start_sec=None, stop_sec=None):
@@ -273,6 +278,22 @@ class Segmenter:
 
     
     def batch_process(self, linput, loutput, tmpdir=None, verbose=False, skipifexist=False, nbtry=1, trydelay=2., output_format='csv'):
+        '''
+
+        Args:
+            linput (List): list of input files to be processed. 
+            loutput (List): list of output paths for writing.
+            tmpdir (str): path to create temporary directory.
+            verbose (bool): To print all logs.
+            ffmpeg (str): string variable which holds ffmpeg.
+            skipifexist (bool): Skips files that have already been processed.
+            nbtry (int): Number of time to retry.
+            trydelay (int): Number of seconds to sleep after faulty retrieval.
+            output_format (str): Format to store output. ['csv','textgrid']
+
+        Returns:
+            (int): 1 if error, 0 if successful
+        '''
         
         if verbose:
             print('batch_processing %d files' % len(linput))
@@ -307,12 +328,11 @@ class Segmenter:
             print('Output from segement feats:',lseg)
 
             feat2npy(mspec,loge,difflen,msg[-1][1],msg[-1][2],
-                        loutput[msg[2][0]][:-4])
-            
-            data = [lseg]
-            columns = ['labels','start','stop']
+                        loutput[msg[-1][0]][:-4])
 
-            fexport(data,columns,loutput[msg[2][0]],from_recs=True)
+            columns = ['labels','start','stop']
+            fexport(lseg,columns,loutput[msg[-1][0]],from_recs=True)
+            
             print('\nFinished fexport')
             # lmsg[-1] = (lmsg[-1][0], lmsg[-1][1], 'ok ' + str(time.time() -b))
 
@@ -324,7 +344,7 @@ class Segmenter:
         #     avg = -1
         # return t_batch_dur, nb_processed, avg, lmsg
 
-        return 1
+        return 0
 
 
 def medialist2feats(src, dst, tmpdir, ffmpeg, skipifexist, nbtry, trydelay, q, tid):
@@ -332,6 +352,7 @@ def medialist2feats(src, dst, tmpdir, ffmpeg, skipifexist, nbtry, trydelay, q, t
     To be used when processing batches
     if resulting file exists, it is skipped
     in case of remote files, access is tried nbtry times
+
     """
 
     ret = None
@@ -359,7 +380,8 @@ def medialist2feats(src, dst, tmpdir, ffmpeg, skipifexist, nbtry, trydelay, q, t
     if ret is None:
         msg.append((dst, 2, 'error: ' + str(errmsg),tid))
     else:
-        msg.append((dst, 0, 'ok', tid))
+        msg.append((dst, 0, 'ok', tid))         
+    return ret, msg
 
 ##### OLD CODE: ######
 #     while ret is None and len(lin) > 0:
@@ -390,11 +412,27 @@ def medialist2feats(src, dst, tmpdir, ffmpeg, skipifexist, nbtry, trydelay, q, t
 #             msg.append((dst, 2, 'error: ' + str(errmsg)))
 #         else:
 #             msg.append((dst, 0, 'ok'))
-            
-    return ret, msg
+####################################  
 
     
 def featGenerator(ilist, olist, tmpdir=None, ffmpeg='ffmpeg', skipifexist=False, nbtry=1, trydelay=2.):
+    '''Generator method which yeild segments of features while utilizing multi-threading.
+
+    Args:
+        ilist (List): list of input files to be processed. 
+        olist (List): list of output paths for writing.
+        tmpdir (str): path to create temporary directory.
+        ffmpeg (str): string variable which holds ffmpeg.
+        skipifexist (bool): Skips files that have already been processed.
+        nbtry (int): Number of time to retry.
+        trydelay (int): Number of seconds to sleep after faulty retrieval.
+
+    Returns:
+        ret[-1],msg (tuple,tuple): 1st element is features, 2nd element is msg.
+            ret[-1] (tuple): mspec, loge, difflen.
+            msg (tuple): result (int), output (str), (tid, start_sec, stop_sec, tmpwav).
+
+    '''
     
     # Create a queue to hold 45min chunks
     q = Queue(maxsize=100)
@@ -418,16 +456,20 @@ def featGenerator(ilist, olist, tmpdir=None, ffmpeg='ffmpeg', skipifexist=False,
                 # If tuple has two elements then thread is done
                 if(len(ret)==2):
                     # Retrieve the thread which has finished and call join
-                    thread_index = ret[1][0][-1]
+                    thread_index = ret[-1]
                     print('\nThread',thread_index,'is finished. Now joining.')
                     t = thread_list[thread_index]
                     t.join()
+                    thread_list.pop(thread_index)
                 # If tuple has 4 elements then it is a chunk
                 else:
                     print('\nYielding chunk')
                     # Yield the 45 min chunk
                     msg = (0, 'ok',ret[:-1])
                     yield ret[-1], msg
+        else:
+            if(len(thread_list)==0):
+                yield None, (0, 'ok')
 
 ####### OLD CODE: ########
 #     thread = ThreadReturning(target = medialist2feats, args=[ilist, olist, tmpdir, ffmpeg, skipifexist, nbtry, trydelay])
@@ -444,3 +486,4 @@ def featGenerator(ilist, olist, tmpdir=None, ffmpeg='ffmpeg', skipifexist=False,
 #         thread.start()
 #         yield ret, msg
 #     yield ret, msg
+############################

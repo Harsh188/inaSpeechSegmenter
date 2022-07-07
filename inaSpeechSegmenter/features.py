@@ -81,7 +81,8 @@ def media2feats(medianame, tmpdir, start_sec, stop_sec, ffmpeg, q, tid):
     print("Starting media 2 feats")
 
     base, _ = os.path.splitext(os.path.basename(medianame))
-
+    print('base',base)
+    print('medianame',medianame)
     with tempfile.TemporaryDirectory(dir=tmpdir) as tmpdirname:
 
         # ##### ADDED CODE: #####
@@ -89,7 +90,7 @@ def media2feats(medianame, tmpdir, start_sec, stop_sec, ffmpeg, q, tid):
        "-of","default=noprint_wrappers=1:nokey=1"]
         p = Popen(args, stdout=PIPE, stderr=PIPE)
         output,error = p.communicate()
-        print("Finished probing duration")
+        print("Finished probing duration. returncode",p.returncode,"output",output)
         assert p.returncode == 0, error
 
         # Convert output (bytes) ==> (int)
@@ -125,10 +126,12 @@ def media2feats(medianame, tmpdir, start_sec, stop_sec, ffmpeg, q, tid):
 
             # Get Mel Power Spectrogram and Energy
             try:
-                q.put((tid,start_sec,stop_sec,_wav2feats(tmpwav),tmpwav))
+                q.put((tid,start_sec,stop_sec,tmpwav,_wav2feats(tmpwav)))
 
             except:
                 print('Error in puting to queue')
+
+    q.put(('done',tid))
     return mel_output
         ########################
 
