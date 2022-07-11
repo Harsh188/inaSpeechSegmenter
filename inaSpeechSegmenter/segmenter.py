@@ -39,14 +39,11 @@ import random
 
 from skimage.util import view_as_windows as vaw
 
-
 from pyannote.algorithms.utils.viterbi import viterbi_decoding
 from viterbi_utils import pred2logemission, diag_trans_exp, log_trans_exp
 
 from features import media2feats
 from export_funcs import seg2csv, seg2textgrid, feat2npy
-
-
 
 def _energy_activity(loge, ratio):
     threshold = np.mean(loge[np.isfinite(loge)]) + np.log(ratio)
@@ -252,7 +249,7 @@ class Segmenter:
         lseg_return=[]
         for lab,start,stop in lseg:
             if(lab=='music'):
-                if(stop_sec-start_sec > 10):
+                if(stop-start > 10):
                     lseg_return.append((lab, start_sec + start * .02, start_sec + stop * .02))
         return lseg_return
 
@@ -442,6 +439,8 @@ def featGenerator(ilist, olist, tmpdir=None, ffmpeg='ffmpeg', skipifexist=False,
 
     # Loop through all input files and create thread
     for i in range(len(ilist)):
+        if skipifexist and os.path.exists(olist[i]):
+            pass
         t = ThreadReturning(target = medialist2feats, args=[ilist[i], olist[i], tmpdir, 
                                 ffmpeg, skipifexist, nbtry, trydelay, q, i])
         t.start()
