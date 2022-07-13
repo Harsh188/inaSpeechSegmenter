@@ -310,7 +310,6 @@ class Segmenter:
         i = 0
         print(fg)
         for feats, msg in fg:
-            lmsg += msg
             i += len(msg)
             if verbose:
                 print('%d/%d' % (i, len(linput)), msg)
@@ -329,7 +328,7 @@ class Segmenter:
 
             columns = ['labels','start','stop']
             fexport(lseg,columns,loutput[msg[-1][0]],from_recs=True)
-            
+            lmsg+=loutput[msg[-1][0]]
             print('\nFinished fexport')
             # lmsg[-1] = (lmsg[-1][0], lmsg[-1][1], 'ok ' + str(time.time() -b))
 
@@ -341,7 +340,7 @@ class Segmenter:
         #     avg = -1
         # return t_batch_dur, nb_processed, avg, lmsg
 
-        return 0
+        return (0,lmsg)
 
 
 def medialist2feats(src, dst, tmpdir, ffmpeg, skipifexist, nbtry, trydelay, q, tid):
@@ -379,37 +378,6 @@ def medialist2feats(src, dst, tmpdir, ffmpeg, skipifexist, nbtry, trydelay, q, t
     else:
         msg.append((dst, 0, 'ok', tid))         
     return ret, msg
-
-##### OLD CODE: ######
-#     while ret is None and len(lin) > 0:
-#         src = lin.pop(0)
-#         dst = lout.pop(0)
-# #        print('popping', src)
-        
-#         # if file exists: skipp
-#         if skipifexist and os.path.exists(dst):
-#             msg.append((dst, 1, 'already exists'))
-#             continue
-
-#         # create storing directory if required
-#         dname = os.path.dirname(dst)
-#         if not os.path.isdir(dname):
-#             os.makedirs(dname)
-        
-#         itry = 0
-#         while ret is None and itry < nbtry:
-#             try:
-#                 ret = media2feats(src, tmpdir, None, None, ffmpeg)
-#             except:
-#                 itry += 1
-#                 errmsg = sys.exc_info()[0]
-#                 if itry != nbtry:
-#                     time.sleep(random.random() * trydelay)
-#         if ret is None:
-#             msg.append((dst, 2, 'error: ' + str(errmsg)))
-#         else:
-#             msg.append((dst, 0, 'ok'))
-####################################  
 
     
 def featGenerator(ilist, olist, tmpdir=None, ffmpeg='ffmpeg', skipifexist=False, nbtry=1, trydelay=2.):
@@ -469,20 +437,3 @@ def featGenerator(ilist, olist, tmpdir=None, ffmpeg='ffmpeg', skipifexist=False,
         else:
             if(len(thread_list)==0):
                 yield None, (0, 'ok')
-
-####### OLD CODE: ########
-#     thread = ThreadReturning(target = medialist2feats, args=[ilist, olist, tmpdir, ffmpeg, skipifexist, nbtry, trydelay])
-#     thread.start()
-#     while True:
-#         ret, msg = thread.join()
-# #        print('join done', len(ilist))
-# #        print('new list', ilist)
-#         #ilist = ilist[len(msg):]
-#         #olist = olist[len(msg):]
-#         if len(ilist) == 0:
-#             break
-#         thread = ThreadReturning(target = medialist2feats, args=[ilist, olist, tmpdir, ffmpeg, skipifexist, nbtry, trydelay])
-#         thread.start()
-#         yield ret, msg
-#     yield ret, msg
-############################
