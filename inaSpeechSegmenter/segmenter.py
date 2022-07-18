@@ -356,7 +356,8 @@ def medialist2feats(src, dst, tmpdir, ffmpeg, skipifexist, nbtry, trydelay, q, t
 
     # if file exists: skipp
     if skipifexist and os.path.exists(dst):
-        msg.append((dst, 1, 'already exists',tid))
+        print('\n WARNING: Destination exists!!!')
+        q.put(None)
         return
 
     # create storing directory if required
@@ -419,6 +420,11 @@ def featGenerator(ilist, olist, tmpdir=None, ffmpeg='ffmpeg', skipifexist=False,
             # If q not empty parse the element
             ret = q.get()
             # Check what the element is:
+            if(ret==None):
+                for t in thread_list:
+                    t.join()
+                # If return is None then dst exists
+                yield None, (0, 'ok')
             if(type(ret) is tuple):
                 # If tuple has two elements then thread is done
                 if(len(ret)==2):
