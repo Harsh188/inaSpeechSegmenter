@@ -42,9 +42,10 @@ def feat2npy(mfcc,loge,difflen,start,stop,fout=None):
     # Create file names using start-stop
     mfcc_out = fout+'_'+str(start)+'_'+str(stop)+'_mfcc.npy'
     loge_out = fout+'_'+str(start)+'_'+str(stop)+'_loge.npy'
-    print("Output:")
-    print(mfcc_out)
-    print(loge_out)
+    print('\n--- Starting feat2npy ---')
+    print("## Output:")
+    print("### mfcc file path:",mfcc_out)
+    print("### loge file path:",loge_out)
 
     # Save mfcc as npy
     np.save(mfcc_out,mfcc)
@@ -68,6 +69,8 @@ def seg2csv(data,columns,fout=None,from_recs=False):
             columns (List): List of strings holding DataFrame column names
             fout (str): Output csv path.
     '''
+    print('\n--- Starting seg2csv ---')
+
     # Create new DF using data
     if(from_recs):
         df = pd.DataFrame.from_records(data,columns=columns)
@@ -78,7 +81,7 @@ def seg2csv(data,columns,fout=None,from_recs=False):
 
     # Check if CSV exists:
     if(os.path.exists(fout)):
-        print("CSV exists -- Appending")
+        print("# CSV exists -- Appending")
         # Append to CSV
         # Load data from csv to DataFrame
         df2 = pd.read_csv(fout)
@@ -87,9 +90,9 @@ def seg2csv(data,columns,fout=None,from_recs=False):
         df = df2.append(df)
 
     # Save to CSV
-    print("Saving DF to CSV\n")
-    print('DF',df.head())
-    print('File',fout)
+    print("## Saving DF to CSV\n")
+    print('## DF',df.head())
+    print('## File',fout)
     df.to_csv(fout,sep=',',index=False)
 
 def seg2textgrid(lseg, fout=None):

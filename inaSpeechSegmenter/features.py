@@ -42,7 +42,7 @@ def _wav2feats(wavname):
     """
     Extract features for wav 16k mono
     """
-    print("Starting _wav2feats")
+    print("\n# Starting _wav2feats")
     ext = os.path.splitext(wavname)[-1]
     
     assert ext.lower() == '.wav' or ext.lower() == '.wave'
@@ -70,19 +70,19 @@ def _wav2feats(wavname):
         mspec = np.concatenate((mspec, np.ones((difflen, 24)) * np.min(mspec)))
         #loge = np.concatenate((loge, np.ones(difflen) * np.min(mspec)))
 
-    print("wav2feats done")
+    print("## wav2feats done")
     return mspec, loge, difflen
 
 
-def media2feats(medianame, tmpdir, start_sec, stop_sec, ffmpeg, q, tid):
+def media2feats(medianame, tmpdir, start_sec_spec, stop_sec, ffmpeg, q, tid):
     """
     Convert media to temp wav 16k file and return features
     """
-    print("Starting media 2 feats")
+    print("\n# Starting media 2 feats")
 
     base, _ = os.path.splitext(os.path.basename(medianame))
-    print('base',base)
-    print('medianame',medianame)
+    print('# Base Name:',base)
+    print('# Medianame:',medianame)
     with tempfile.TemporaryDirectory(dir=tmpdir) as tmpdirname:
 
         # ##### ADDED CODE: #####
@@ -90,14 +90,16 @@ def media2feats(medianame, tmpdir, start_sec, stop_sec, ffmpeg, q, tid):
        "-of","default=noprint_wrappers=1:nokey=1"]
         p = Popen(args, stdout=PIPE, stderr=PIPE)
         output,error = p.communicate()
-        print("Finished probing duration. returncode",p.returncode,"output",output)
+        print("\n## Finished probing duration. Returncode:",p.returncode,"Output:",output)
         assert p.returncode == 0, error
 
         # Convert output (bytes) ==> (int)
         i_output = int(float(output.decode("utf-8").strip()))
-        print('Duration',i_output)
+        print('### Duration:',i_output)
 
         mel_output=[]
+        start_sec=0
+        tmpwav=''
         
         for i in range(math.ceil(i_output/2700)):
             # build ffmpeg command line
@@ -116,7 +118,10 @@ def media2feats(medianame, tmpdir, start_sec, stop_sec, ffmpeg, q, tid):
 
                 tmpwav = tmpdirname + '/' + base + '_'+str(start_sec)+'_'+str(stop_sec)+'.wav'
             
-            print('tmpwav',tmpwav)
+            if(int(start_sec_spec)>=int(start_sec)):
+                print("\n#### File has been segmented for start time:",start_sec)
+                continue
+            print('\n#### tmpwav name:',tmpwav)
             args += [tmpwav]
 
             # launch ffmpeg
@@ -133,24 +138,3 @@ def media2feats(medianame, tmpdir, start_sec, stop_sec, ffmpeg, q, tid):
 
     q.put(('done',tid))
     return mel_output
-        ########################
-
-        # build ffmpeg command line
-        # tmpwav = tmpdirname + '/' + base + '.wav'
-        # args = [ffmpeg, '-y', '-i', medianame, '-ar', '16000', '-ac', '1']
-        # if start_sec is None:
-        #     start_sec = 0
-        # else:
-        #     args += ['-ss', '%f' % start_sec]
-
-        # if stop_sec is not None:
-        #     args += ['-to', '%f' % stop_sec]
-        # args += [tmpwav]
-
-        # # launch ffmpeg
-        # p = Popen(args, stdout=PIPE, stderr=PIPE)
-        # output, error = p.communicate()
-        # assert p.returncode == 0, error
-
-        # Get Mel Power Spectrogram and Energy
-        # return _wav2feats(tmpwav)
